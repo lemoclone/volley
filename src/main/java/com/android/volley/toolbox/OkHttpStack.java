@@ -24,7 +24,6 @@
 package com.android.volley.toolbox;
 
 import com.android.volley.AuthFailureError;
-import com.android.volley.toolbox.HttpStack;
 import com.squareup.okhttp.Headers;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
@@ -58,14 +57,16 @@ public class OkHttpStack implements HttpStack {
     @Override
     public HttpResponse performRequest(com.android.volley.Request<?> request, Map<String, String> additionalHeaders) throws IOException, AuthFailureError {
 
-        Headers headerbuild = Headers.of(additionalHeaders).of(request.getHeaders());
-
+        Headers headers = Headers.of(additionalHeaders).of(request.getHeaders());
         MediaType mediaType = MediaType.parse(request.getBodyContentType());
+        RequestBody requestBody = null;
+        if (request.getBody() != null) {
+            requestBody = RequestBody.create(mediaType, request.getBody());
+        }
+        Request okRequest = new Request.Builder().url(request.getUrl()).headers(headers)
+                .method(convertOkHttpMethod(request.getMethod()), requestBody).
+                        build();
 
-        RequestBody requestBody = RequestBody.create(mediaType, request.getBody());
-
-        Request okRequest = new Request.Builder().url(request.getUrl()).headers(headerbuild).post(requestBody).
-                build();
         Response okResponse = okHttpClient.newCall(okRequest).execute();
 
         ProtocolVersion protocolVersion = new ProtocolVersion("HTTP", 1, 1);
@@ -79,6 +80,40 @@ public class OkHttpStack implements HttpStack {
             volleyResponse.addHeader(h);
         }
         return volleyResponse;
+    }
+
+
+    public interface Method {
+        int DEPRECATED_GET_OR_POST = -1;
+        int GET = 0;
+        int POST = 1;
+        int PUT = 2;
+        int DELETE = 3;
+        int HEAD = 4;
+        int OPTIONS = 5;
+        int TRACE = 6;
+        int PATCH = 7;
+    }
+
+    private String convertOkHttpMethod(int method) {
+        switch (method) {
+            case Method.DELETE:
+                return "DELETE";
+            case Method.GET:
+                return "GET";
+            case Method.POST:
+                return "POST";
+            case Method.PUT:
+                return "PUT";
+            case Method.PATCH:
+                return "PATCH";
+            case Method.HEAD:
+                return "HEAD";
+            case Method.OPTIONS:
+                return "OPTIONS";
+            default:
+                return "GET";
+        }
     }
 
     /**
